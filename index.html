@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spooky Movie Night Invite</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Creepster&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: one torn cinema ticket centered on a foggy night, single dark theme by choice */
+:root {
+  --night: #0d0b12;
+  --ticket: #e9dfc8;
+  --ink: #241a1a;
+  --blood: #a3171b;
+  --glow: #ff8a1f;
+  --mist: #9b93a8;
+  --display: "Creepster", "Impact", fantasy;
+  --body: "Courier Prime", "Courier New", ui-monospace, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: radial-gradient(ellipse at 50% 110%, #2a1630 0%, var(--night) 60%);
+  background-color: var(--night);
+  color: var(--ticket);
+  font-family: var(--body);
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  overflow-x: hidden;
+}
+canvas#fog { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+
+.ticket {
+  position: relative;
+  z-index: 1;
+  width: min(560px, 100%);
+  background: var(--ticket);
+  color: var(--ink);
+  border-radius: 6px;
+  box-shadow: 0 0 0 2px #00000040, 0 20px 60px #000c, 0 0 80px #ff8a1f22;
+  display: grid;
+  grid-template-columns: 1fr;
+}
+/* notches on the perforation line */
+.ticket::before, .ticket::after {
+  content: ""; position: absolute; width: 28px; height: 28px; border-radius: 50%;
+  background: var(--night); top: calc(var(--perf, 70%) - 14px);
+}
+.ticket::before { left: -14px; }
+.ticket::after { right: -14px; }
+
+.main { padding: 28px 28px 22px; display: grid; gap: 14px; }
+.eyebrow {
+  display: flex; justify-content: space-between; gap: 12px;
+  font-size: 0.78rem; letter-spacing: 0.14em; text-transform: uppercase;
+  border-bottom: 2px solid var(--ink); padding-bottom: 8px;
+}
+h1 {
+  font-family: var(--display); font-weight: 400;
+  font-size: clamp(2.6rem, 9vw, 4rem); line-height: 0.95;
+  color: var(--blood); margin: 4px 0 0; text-wrap: balance;
+  animation: flicker 6s infinite;
+}
+.lede { margin: 0; font-size: 1.05rem; line-height: 1.5; max-width: 60ch; }
+
+.details { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.detail { border: 2px solid var(--ink); padding: 8px 10px; display: grid; gap: 2px; }
+.detail span { font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.75; }
+.detail strong { font-size: 1rem; font-variant-numeric: tabular-nums; }
+.feature { border: 2px dashed var(--ink); border-radius: 4px; padding: 12px 14px; display: grid; gap: 4px; }
+.feature span { font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.75; }
+.feature strong { font-family: var(--display); font-weight: 400; font-size: 2rem; color: var(--blood); line-height: 1; }
+.feature small { font-size: 0.85rem; }
+
+fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; }
+legend { font-weight: 700; margin-bottom: 8px; font-size: 1rem; }
+.picks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.pick input { position: absolute; opacity: 0; pointer-events: none; }
+.pick label {
+  display: grid; gap: 2px; height: 100%; cursor: pointer;
+  border: 2px dashed var(--ink); padding: 8px 10px; border-radius: 4px;
+  transition: background 0.15s, color 0.15s;
+}
+.pick label small { font-size: 0.72rem; opacity: 0.8; }
+.pick input:checked + label { background: var(--ink); color: var(--ticket); border-style: solid; }
+.pick input:focus-visible + label { outline: 3px solid var(--glow); outline-offset: 2px; }
+
+.perf { border-top: 3px dashed rgba(36,26,26,0.4); }
+.stub {
+  padding: 18px 28px 26px; display: grid; gap: 12px; position: relative; min-height: 120px;
+}
+.stub p { margin: 0; font-weight: 700; font-size: 1.1rem; }
+.buttons { position: relative; display: flex; gap: 12px; flex-wrap: wrap; min-height: 52px; }
+button {
+  font-family: var(--body); font-weight: 700; font-size: 1rem;
+  padding: 12px 22px; border-radius: 4px; cursor: pointer; border: 2px solid var(--ink);
+}
+button:focus-visible { outline: 3px solid var(--glow); outline-offset: 2px; }
+#yes { background: var(--blood); color: #fff; border-color: var(--blood); box-shadow: 0 0 18px #a3171b66; }
+#yes:hover { filter: brightness(1.15); }
+#no { background: transparent; color: var(--ink); transition: transform 0.18s ease-out; }
+.hint { font-size: 0.8rem; opacity: 0.7; margin: 0; min-height: 1.2em; }
+
+/* confirmed state */
+.confirmed { display: none; padding: 26px 28px 30px; gap: 10px; text-align: left; }
+.ticket.done .stub, .ticket.done fieldset { display: none; }
+.ticket.done .confirmed { display: grid; }
+.stamp {
+  justify-self: start; font-family: var(--display); font-size: 2.2rem; color: var(--blood);
+  border: 4px solid var(--blood); padding: 2px 14px; transform: rotate(-6deg); letter-spacing: 0.04em;
+}
+.confirmed p { margin: 0; line-height: 1.5; }
+
+@keyframes flicker {
+  0%, 92%, 100% { opacity: 1; }
+  93% { opacity: 0.4; } 94% { opacity: 1; } 96% { opacity: 0.6; } 97% { opacity: 1; }
+}
+@media (max-width: 460px) {
+  .details, .picks { grid-template-columns: 1fr; }
+  .main, .stub, .confirmed { padding-left: 20px; padding-right: 20px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  h1 { animation: none; }
+  #no { transition: none; }
+}
+</style>
+</head>
+<body>
+<canvas id="fog" aria-hidden="true"></canvas>
+
+<main class="ticket" id="ticket">
+  <section class="main">
+    <div class="eyebrow"><span>Admit two</span><span>Row 13 · Seat 31</span></div>
+    <h1>Movie Night… if you dare</h1>
+    <p class="lede">I'd love to spend Halloween with you: lights off, a blanket, way too much popcorn, and a movie that makes you grab my arm.</p>
+
+    <div class="details">
+      <div class="detail"><span>Date</span><strong>Sat, Oct 31</strong></div>
+      <div class="detail"><span>Showtime</span><strong>10:00 PM</strong></div>
+      <div class="detail"><span>Theater</span><strong>The house</strong></div>
+    </div>
+
+    <div class="feature">
+      <span>Now showing</span>
+      <strong>T.B.D.</strong>
+      <small>To Be Dreaded. Title revealed at the door, if you survive the walk up.</small>
+    </div>
+  </section>
+
+  <div class="perf" aria-hidden="true"></div>
+
+  <section class="stub">
+    <p>So… will you be my date?</p>
+    <div class="buttons" id="buttons">
+      <button type="button" id="yes">Yes, I'm in</button>
+      <button type="button" id="no">No thanks</button>
+    </div>
+    <p class="hint" id="hint" aria-live="polite"></p>
+  </section>
+
+  <section class="confirmed" aria-live="polite">
+    <div class="stamp">It's a date!</div>
+    <p><strong id="confirmText">T.B.D. (To Be Dreaded), Saturday, Oct 31 at 10:00 PM at the house.</strong></p>
+    <p>Screenshot this ticket and text it to Derek so he knows to start the popcorn.</p>
+  </section>
+</main>
+
+<script>
+(function () {
+  const ticket = document.getElementById('ticket');
+  const yes = document.getElementById('yes');
+  const no = document.getElementById('no');
+  const hint = document.getElementById('hint');
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // position notches on the perforation line
+  function placeNotches() {
+    const perf = document.querySelector('.perf');
+    const pct = (perf.offsetTop / ticket.offsetHeight) * 100;
+    ticket.style.setProperty('--perf', pct + '%');
+  }
+  placeNotches();
+  window.addEventListener('resize', placeNotches);
+  document.fonts && document.fonts.ready.then(placeNotches);
+
+  // the "No" button runs away
+  const lines = [
+    "Hmm, that button seems haunted.",
+    "It's trying to escape. Like you, apparently.",
+    "The ghosts say that's not an option.",
+    "Okay, the button has made its choice."
+  ];
+  let tries = 0;
+  function dodge(e) {
+    if (e) e.preventDefault();
+    tries++;
+    hint.textContent = lines[Math.min(tries - 1, lines.length - 1)];
+    if (tries >= 4) {
+      no.textContent = "Fine… Yes";
+      no.style.transform = 'none';
+      no.removeEventListener('pointerenter', dodge);
+      no.removeEventListener('click', dodge);
+      no.addEventListener('click', accept);
+      return;
+    }
+    const box = document.getElementById('buttons').getBoundingClientRect();
+    const b = no.getBoundingClientRect();
+    const maxX = Math.max(0, box.width - b.width - yes.offsetWidth - 12);
+    const x = Math.random() * maxX * (Math.random() < 0.5 ? -0.3 : 1);
+    const y = (Math.random() - 0.5) * 40;
+    no.style.transform = `translate(${x.toFixed(0)}px, ${y.toFixed(0)}px) rotate(${(Math.random()*16-8).toFixed(0)}deg)`;
+  }
+  no.addEventListener('pointerenter', dodge);
+  no.addEventListener('click', dodge);
+
+  function accept() {
+    ticket.classList.add('done');
+    placeNotches();
+  }
+  yes.addEventListener('click', accept);
+
+  // drifting fog + a few bats
+  const c = document.getElementById('fog');
+  const ctx = c.getContext('2d');
+  let W, H, puffs = [], bats = [];
+  function size() {
+    const dpr = window.devicePixelRatio || 1;
+    W = c.clientWidth; H = c.clientHeight;
+    c.width = W * dpr; c.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  size(); window.addEventListener('resize', size);
+  for (let i = 0; i < 26; i++) puffs.push({ x: Math.random() * W, y: H * (0.55 + Math.random() * 0.5), r: 80 + Math.random() * 160, v: 0.1 + Math.random() * 0.3 });
+  for (let i = 0; i < 5; i++) bats.push({ x: Math.random() * W, y: Math.random() * H * 0.4, v: 0.6 + Math.random(), p: Math.random() * 6 });
+
+  function bat(x, y, flap) {
+    const w = 14, f = Math.sin(flap) * 6;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.quadraticCurveTo(x - w * 0.5, y - 6 - f, x - w, y - f);
+    ctx.quadraticCurveTo(x - w * 0.5, y + 2, x, y + 3);
+    ctx.quadraticCurveTo(x + w * 0.5, y + 2, x + w, y - f);
+    ctx.quadraticCurveTo(x + w * 0.5, y - 6 - f, x, y);
+    ctx.fill();
+  }
+  function frame(t) {
+    ctx.clearRect(0, 0, W, H);
+    // moon
+    const mg = ctx.createRadialGradient(W * 0.82, H * 0.14, 0, W * 0.82, H * 0.14, 140);
+    mg.addColorStop(0, 'rgba(255,200,140,0.35)'); mg.addColorStop(1, 'rgba(255,200,140,0)');
+    ctx.fillStyle = mg; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(255,225,190,0.85)';
+    ctx.beginPath(); ctx.arc(W * 0.82, H * 0.14, 34, 0, Math.PI * 2); ctx.fill();
+    // fog
+    for (const p of puffs) {
+      if (!reduce) { p.x += p.v; if (p.x - p.r > W) p.x = -p.r; }
+      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r);
+      g.addColorStop(0, 'rgba(155,147,168,0.10)'); g.addColorStop(1, 'rgba(155,147,168,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+    }
+    // bats
+    ctx.fillStyle = 'rgba(5,3,8,0.9)';
+    for (const b of bats) {
+      if (!reduce) { b.x += b.v; b.p += 0.25; if (b.x > W + 20) { b.x = -20; b.y = Math.random() * H * 0.4; } }
+      bat(b.x, b.y + Math.sin(b.p * 0.3) * 6, b.p);
+    }
+    if (!reduce) requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
