@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Spooky Movie Night Invite</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -29,8 +29,9 @@ body {
   font-family: var(--body);
   display: grid;
   place-items: center;
-  padding: 24px 16px;
+  padding: max(28px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(28px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
   overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
 }
 canvas#fog { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
 
@@ -47,11 +48,11 @@ canvas#fog { position: fixed; inset: 0; width: 100%; height: 100%; pointer-event
 }
 /* notches on the perforation line */
 .ticket::before, .ticket::after {
-  content: ""; position: absolute; width: 28px; height: 28px; border-radius: 50%;
-  background: var(--night); top: calc(var(--perf, 70%) - 14px);
+  content: ""; position: absolute; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--night); top: calc(var(--perf, 70%) - 11px);
 }
-.ticket::before { left: -14px; }
-.ticket::after { right: -14px; }
+.ticket::before { left: -11px; }
+.ticket::after { right: -11px; }
 
 .main { padding: 28px 28px 22px; display: grid; gap: 14px; }
 .eyebrow {
@@ -94,16 +95,18 @@ legend { font-weight: 700; margin-bottom: 8px; font-size: 1rem; }
   padding: 18px 28px 26px; display: grid; gap: 12px; position: relative; min-height: 120px;
 }
 .stub p { margin: 0; font-weight: 700; font-size: 1.1rem; }
-.buttons { position: relative; display: flex; gap: 12px; flex-wrap: wrap; min-height: 52px; }
+.buttons { position: relative; height: 128px; }
+#yes { position: absolute; left: 0; top: 0; }
+#no { position: absolute; top: 0; touch-action: manipulation; }
 button {
   font-family: var(--body); font-weight: 700; font-size: 1rem;
-  padding: 12px 22px; border-radius: 4px; cursor: pointer; border: 2px solid var(--ink);
+  padding: 12px 18px; border-radius: 4px; -webkit-tap-highlight-color: transparent; cursor: pointer; border: 2px solid var(--ink);
 }
 button:focus-visible { outline: 3px solid var(--glow); outline-offset: 2px; }
 #yes { background: var(--blood); color: #fff; border-color: var(--blood); box-shadow: 0 0 18px #a3171b66; }
 #yes:hover { filter: brightness(1.15); }
-#no { background: transparent; color: var(--ink); transition: transform 0.18s ease-out; }
-.hint { font-size: 0.8rem; opacity: 0.7; margin: 0; min-height: 1.2em; }
+#no { background: transparent; color: var(--ink); transition: left 0.3s ease-out, top 0.3s ease-out, transform 0.3s ease-out; }
+.stub .hint { font-weight: 400; font-size: 0.9rem; font-style: italic; opacity: 0.8; margin: 0; min-height: 2.8em; line-height: 1.4; }
 
 /* confirmed state */
 .confirmed { display: none; padding: 26px 28px 30px; gap: 10px; text-align: left; }
@@ -120,8 +123,12 @@ button:focus-visible { outline: 3px solid var(--glow); outline-offset: 2px; }
   93% { opacity: 0.4; } 94% { opacity: 1; } 96% { opacity: 0.6; } 97% { opacity: 1; }
 }
 @media (max-width: 460px) {
-  .details, .picks { grid-template-columns: 1fr; }
-  .main, .stub, .confirmed { padding-left: 20px; padding-right: 20px; }
+  .details { grid-template-columns: 1fr 1fr; }
+  .details .detail:first-child { grid-column: 1 / -1; }
+  .main, .stub, .confirmed { padding-left: 18px; padding-right: 18px; }
+  .main { padding-top: 22px; }
+  .eyebrow { font-size: 0.7rem; letter-spacing: 0.1em; }
+  .lede { font-size: 1rem; }
 }
 @media (prefers-reduced-motion: reduce) {
   h1 { animation: none; }
@@ -195,26 +202,49 @@ button:focus-visible { outline: 3px solid var(--glow); outline-offset: 2px; }
     "Okay, the button has made its choice."
   ];
   let tries = 0;
+  let last = 0;
+  const area = document.getElementById('buttons');
+  function home() {
+    no.style.left = (yes.offsetWidth + 12) + 'px';
+    no.style.top = '0px';
+  }
+  home();
+  document.fonts && document.fonts.ready.then(() => { if (!tries) home(); });
+  window.addEventListener('resize', () => { if (!tries) home(); });
+
   function dodge(e) {
     if (e) e.preventDefault();
+    const now = Date.now();
+    if (now - last < 600) return; // one tap = one dodge
+    last = now;
     tries++;
     hint.textContent = lines[Math.min(tries - 1, lines.length - 1)];
     if (tries >= 4) {
       no.textContent = "Fine… Yes";
       no.style.transform = 'none';
-      no.removeEventListener('pointerenter', dodge);
+      no.removeEventListener('pointerenter', onHover);
       no.removeEventListener('click', dodge);
-      no.addEventListener('click', accept);
+      setTimeout(() => no.addEventListener('click', accept), 300);
       return;
     }
-    const box = document.getElementById('buttons').getBoundingClientRect();
-    const b = no.getBoundingClientRect();
-    const maxX = Math.max(0, box.width - b.width - yes.offsetWidth - 12);
-    const x = Math.random() * maxX * (Math.random() < 0.5 ? -0.3 : 1);
-    const y = (Math.random() - 0.5) * 40;
-    no.style.transform = `translate(${x.toFixed(0)}px, ${y.toFixed(0)}px) rotate(${(Math.random()*16-8).toFixed(0)}deg)`;
+    // pick a spot inside the play area that doesn't cover the Yes button
+    const aw = area.clientWidth, ah = area.clientHeight;
+    const w = no.offsetWidth, h = no.offsetHeight;
+    const yesRight = yes.offsetWidth + 12, yesBottom = yes.offsetHeight + 10;
+    let x, y, n = 0;
+    do {
+      x = Math.random() * Math.max(0, aw - w);
+      y = Math.random() * Math.max(0, ah - h);
+      n++;
+    } while (n < 30 && x < yesRight && y < yesBottom);
+    if (x < yesRight && y < yesBottom) { x = Math.max(0, aw - w); y = Math.max(0, ah - h); }
+    no.style.left = x.toFixed(0) + 'px';
+    no.style.top = y.toFixed(0) + 'px';
+    no.style.transform = 'rotate(' + (Math.random() * 12 - 6).toFixed(0) + 'deg)';
   }
-  no.addEventListener('pointerenter', dodge);
+  // hover dodging only for a real mouse; on phones it's tap to dodge
+  function onHover(e) { if (e.pointerType === 'mouse') dodge(e); }
+  no.addEventListener('pointerenter', onHover);
   no.addEventListener('click', dodge);
 
   function accept() {
